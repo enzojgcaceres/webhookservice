@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nohup node server.js > /tmp/server.log 2>&1 & disown; sleep 1; curl -s http://localhost:3000/health && echo)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node --check server.js)",
+      "Bash(node --check test-webhook.js)",
+      "Bash(curl -s -X POST http://localhost:3000/zendesk-reply -H \"Content-Type: application/json\" -d '{\"ticket_id\":\"1\",\"ticket_subject\":\"asunto random\",\"agent_reply\":\"<p>hola</p>\",\"agent_name\":\"Test\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/zendesk-reply -H \"Content-Type: application/json\" -d '{\"ticket_id\":\"1\"}')",
+      "Bash(node test-webhook.js 98765432109876)",
+      "Read(//private/tmp/**)"
+    ]
+  }
+}
