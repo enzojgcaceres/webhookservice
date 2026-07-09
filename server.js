@@ -37,12 +37,21 @@ function extractConversationId(subject = '') {
  * Si ZENDESK_WEBHOOK_SECRET no está seteado, se salta la validación (modo dev).
  */
 function isValidZendeskSignature(req) {
-  if (!ZENDESK_WEBHOOK_SECRET) return true; // modo dev: sin secreto configurado
+  if (!ZENDESK_WEBHOOK_SECRET) return { valid: true };
 
   const signature = req.get('x-zendesk-webhook-signature');
   const timestamp = req.get('x-zendesk-webhook-signature-timestamp');
 
-  if (!signature || !timestamp || !req.rawBody) return false;
+  if (!signature || !timestamp || !req.rawBody) {
+    // DEBUG TEMPORAL: nos falta ver si Zendesk manda estos headers con otro nombre.
+    return {
+      valid: false,
+      reason: 'missing_headers',
+      signaturePresent: !!signature,
+      timestampPresent: !!timestamp,
+      receivedHeaders: Object.keys(req.headers)
+    };
+  }
 
   const expected = crypto
     .createHmac('sha256', ZENDESK_WEBHOOK_SECRET)
@@ -52,8 +61,10 @@ function isValidZendeskSignature(req) {
   const expectedBuf = Buffer.from(expected);
   const receivedBuf = Buffer.from(signature);
 
-  if (expectedBuf.length !== receivedBuf.length) return false;
-  return crypto.timingSafeEqual(expectedBuf, receivedBuf);
+  const valid = expectedBuf.length === receivedBuf.length && crypto.timingSafeEqual(expectedBuf, receivedBuf);
+
+  // DEBUG TEMPORAL: comparar firma esperada vs recibida cuando no matchea.
+  return valid ? { valid: true } : { valid: false, reason: 'digest_mismatch', expected, received: signature, timestamp };
 }
 
 /**
@@ -122,9 +133,12 @@ async function sendIntercomReply(conversationId, messageBody) {
  */
 app.post('/zendesk-reply', async (req, res) => {
   // Validar la firma del webhook (si ZENDESK_WEBHOOK_SECRET está configurado)
-  if (!isValidZendeskSignature(req)) {
-    console.error(`\n[${new Date().toISOString()}] ERROR: Firma de webhook inválida o faltante`);
-    return res.status(401).json({ error: 'Firma de webhook inválida' });
+  const signatureCheck = isValidZendeskSignature(req);
+  if (!signatureCheck.valid) {
+    console.error(`\n[${new Date().toISOString()}] ERROR: Firma de webhook inválida o faltante`, signatureCheck);
+    // DEBUG TEMPORAL: se devuelve el detalle en la respuesta para diagnosticar
+    // por qué la firma real de Zendesk no matchea. Sacar esto una vez resuelto.
+    return res.status(401).json({ error: 'Firma de webhook inválida', debug: signatureCheck });
   }
 
   const { ticket_id, ticket_subject, agent_reply, agent_name } = req.body;
